@@ -7,8 +7,8 @@ from torch_geometric.data import ClusterData, ClusterLoader, NeighborSampler
 from torch_geometric.nn import SAGEConv
 from torch.nn.parallel import DataParallel
 
-dataset = Reddit('../data/Reddit')
-data = dataset[0]
+# dataset = Reddit('../data/Reddit')
+# data = dataset[0]
 
 dataset = 'Cora'
 path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', dataset)
@@ -67,8 +67,8 @@ class Net(torch.nn.Module):
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-if torch.cuda.device_count() > 1:
-    model = DataParallel(model)
+# if torch.cuda.device_count() > 1:
+#     model = DataParallel(model)
 model = Net(dataset.num_features, dataset.num_classes).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
