@@ -99,8 +99,7 @@ data = dataset[0]
 
 args = cluster_args.arg_parse()
 
-cluster_data = list(ClusterData(data, num_parts=1500, recursive=False,
-                           save_dir=dataset.processed_dir))
+cluster_data = (ClusterData(data, num_parts=1000, recursive=False,save_dir=dataset.processed_dir))
 # train_loader = ClusterLoader(cluster_data, batch_size=args.batch_size, shuffle=True,num_workers=12)
 train_loader = DataListLoader(cluster_data, batch_size=args.batch_size, shuffle=True)
 # subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024/8,shuffle=False, num_workers=12)
