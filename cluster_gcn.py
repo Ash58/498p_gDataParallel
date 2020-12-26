@@ -103,7 +103,7 @@ cluster_data = ClusterData(data, num_parts=1500, recursive=False,
 train_loader = ClusterLoader(cluster_data, batch_size=args.batch_size, shuffle=True,
                              num_workers=12)
 
-subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024/8,
+subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024,
                                   shuffle=False, num_workers=12)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

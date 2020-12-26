@@ -1,7 +1,7 @@
 import argparse
 
 def arg_parse():
-    parser = argparse.ArgumentParser(description='(GraphSAINT) - Single GPU')
+    parser = argparse.ArgumentParser(description='Flickr (GraphSAINT)')
     parser.add_argument('--gpu', type=str, default="single" )
     parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--inductive', action='store_true')
