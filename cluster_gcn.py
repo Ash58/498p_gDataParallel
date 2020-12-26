@@ -8,9 +8,9 @@ from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
 from tqdm import tqdm
 from torch_geometric.datasets import Reddit
-from torch_geometric.data import ClusterData, ClusterLoader, NeighborSampler
-from torch_geometric.nn import SAGEConv
-from torch.nn.parallel import DataParallel
+from torch_geometric.data import ClusterData, ClusterLoader, NeighborSampler, DataListLoader
+from torch_geometric.nn import SAGEConv, DataParallel
+# from torch.nn.parallel import DataParallel
 from sklearn.linear_model import LogisticRegression
 
 import argparse
@@ -66,6 +66,7 @@ def train():
     for batch in train_loader:
         batch = batch.to(device)
         optimizer.zero_grad()
+        print(batch.x, batch.edge_index)
         out = model(batch.x, batch.edge_index)
         loss = F.nll_loss(out[batch.train_mask], batch.y[batch.train_mask])
         loss.backward()
@@ -98,13 +99,11 @@ data = dataset[0]
 
 args = cluster_args.arg_parse()
 
-cluster_data = ClusterData(data, num_parts=1500, recursive=False,
-                           save_dir=dataset.processed_dir)
-train_loader = ClusterLoader(cluster_data, batch_size=args.batch_size, shuffle=True,
-                             num_workers=12)
-
-subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024,
-                                  shuffle=False, num_workers=12)
+cluster_data = list(ClusterData(data, num_parts=1500, recursive=False,
+                           save_dir=dataset.processed_dir))
+# train_loader = ClusterLoader(cluster_data, batch_size=args.batch_size, shuffle=True,num_workers=12)
+train_loader = DataListLoader(cluster_data, batch_size=args.batch_size, shuffle=True)
+# subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024/8,shuffle=False, num_workers=12)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # how to implement baseline w/o dataparallel?

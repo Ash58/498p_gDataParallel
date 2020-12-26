@@ -5,11 +5,11 @@ import arguments
 import torch
 import torch.nn.functional as F
 from torch_geometric.datasets import Flickr
-from torch_geometric.data import GraphSAINTRandomWalkSampler
-from torch_geometric.nn import GraphConv
+from torch_geometric.data import GraphSAINTRandomWalkSampler,DataListLoader
+from torch_geometric.nn import GraphConv, DataParallel
 from torch_geometric.utils import degree
 import torch_geometric.transforms as T
-from torch.nn.parallel import DataParallel
+# from torch.nn.parallel import DataParallel
 import graphsaint_args
 
 class Net(torch.nn.Module):
@@ -107,10 +107,10 @@ f = open(args.log_path, 'w')
 
 for epoch in range(1, args.epochs + 1):
     start_epoch = datetime.now()
-    loss = train(model, device, optimizer, loader, args.use_normalization)
+    loss = train()
     end_epoch = datetime.now()
 
-    train_acc, val_acc, test_acc = test(model, data, device)
+    train_acc, val_acc, test_acc = test()
     print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}', ",\tTime: ", str(end_epoch - start_epoch), f', Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}')  
     print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}', ",\tTime: ", str(end_epoch - start_epoch), f', Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}', file=f)  
     f.flush()
