@@ -93,7 +93,7 @@ loader = GraphSAINTRandomWalkSampler(data, batch_size=args.batch_size, walk_leng
                                      num_steps=5, sample_coverage=100,
                                      save_dir=dataset.processed_dir,
                                      num_workers=4)
-
+loader = DataListLoader(loader, batch_size=args.batch_size, shuffle=True)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
