@@ -96,9 +96,11 @@ loader = GraphSAINTRandomWalkSampler(data, batch_size=args.batch_size, walk_leng
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+model = Net(hidden_channels=256)
 if args.gpu=="multi": 
     model = DataParallel(model)
-model = Net(hidden_channels=256).to(device)
+model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 f = open(args.log_path, 'w')

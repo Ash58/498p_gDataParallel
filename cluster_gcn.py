@@ -108,9 +108,10 @@ subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024,
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # how to implement baseline w/o dataparallel?
+model = Net(dataset.num_features, dataset.num_classes)
 if args.gpu=="multi": 
     model = DataParallel(model)
-model = Net(dataset.num_features, dataset.num_classes).to(device)
+model = model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 f = open(args.log_path, 'w')
