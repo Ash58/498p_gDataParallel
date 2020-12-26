@@ -1,34 +1,16 @@
 import os.path as osp
 
 import argparse
+import arguments
 import torch
 import torch.nn.functional as F
 from torch_geometric.datasets import Flickr
 from torch_geometric.data import GraphSAINTRandomWalkSampler
 from torch_geometric.nn import GraphConv
 from torch_geometric.utils import degree
+import torch_geometric.transforms as T
 from torch.nn.parallel import DataParallel
-
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'Flickr')
-dataset = Flickr(path)
-data = dataset[0]
-row, col = data.edge_index
-data.edge_weight = 1. / degree(col, data.num_nodes)[col]  # Norm by in-degree.
-
-dataset = 'Cora'
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', dataset)
-dataset = Planetoid(path, dataset, transform=T.NormalizeFeatures())
-data = dataset[0]
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--use_normalization', action='store_true')
-args = parser.parse_args()
-
-loader = GraphSAINTRandomWalkSampler(data, batch_size=6000, walk_length=2,
-                                     num_steps=5, sample_coverage=100,
-                                     save_dir=dataset.processed_dir,
-                                     num_workers=4)
-
+import graphsaint_args
 
 class Net(torch.nn.Module):
     def __init__(self, hidden_channels):
@@ -55,14 +37,6 @@ class Net(torch.nn.Module):
         x = torch.cat([x1, x2, x3], dim=-1)
         x = self.lin(x)
         return x.log_softmax(dim=-1)
-
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-if torch.cuda.device_count() > 1:
-    model = DataParallel(model)
-model = Net(hidden_channels=256).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
 
 def train():
     model.train()
@@ -103,9 +77,40 @@ def test():
         accs.append(correct[mask].sum().item() / mask.sum().item())
     return accs
 
+path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', 'Flickr')
+dataset = Flickr(path)
+data = dataset[0]
+row, col = data.edge_index
+data.edge_weight = 1. / degree(col, data.num_nodes)[col]  # Norm by in-degree.
 
-for epoch in range(1, 51):
-    loss = train()
-    accs = test()
-    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Train: {accs[0]:.4f}, '
-          f'Val: {accs[1]:.4f}, Test: {accs[2]:.4f}')
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--use_normalization', action='store_true')
+# args = parser.parse_args()
+
+args = graphsaint_args.arg_parse()
+
+loader = GraphSAINTRandomWalkSampler(data, batch_size=args.batch_size, walk_length=2,
+                                     num_steps=5, sample_coverage=100,
+                                     save_dir=dataset.processed_dir,
+                                     num_workers=4)
+
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if args.gpu=="multi": 
+    model = DataParallel(model)
+model = Net(hidden_channels=256).to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
+f = open(args.log_path, 'w')
+
+for epoch in range(1, args.epochs + 1):
+    start_epoch = datetime.now()
+    loss = train(model, device, optimizer, loader, args.use_normalization)
+    end_epoch = datetime.now()
+
+    train_acc, val_acc, test_acc = test(model, data, device)
+    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}', ",\tTime: ", str(end_epoch - start_epoch), f', Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}')  
+    print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}', ",\tTime: ", str(end_epoch - start_epoch), f', Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}', file=f)  
+    f.flush()
+    
+f.close()

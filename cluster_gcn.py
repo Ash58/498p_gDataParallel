@@ -1,6 +1,7 @@
 import os.path as osp
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import ModuleList
 from torch_geometric.datasets import Planetoid
@@ -10,22 +11,10 @@ from torch_geometric.datasets import Reddit
 from torch_geometric.data import ClusterData, ClusterLoader, NeighborSampler
 from torch_geometric.nn import SAGEConv
 from torch.nn.parallel import DataParallel
+from sklearn.linear_model import LogisticRegression
 
-# dataset = Reddit('../data/Reddit')
-# data = dataset[0]
-
-dataset = 'Cora'
-path = osp.join(osp.dirname(osp.realpath(__file__)), '..', 'data', dataset)
-dataset = Planetoid(path, dataset, transform=T.NormalizeFeatures())
-data = dataset[0]
-
-cluster_data = ClusterData(data, num_parts=1500, recursive=False,
-                           save_dir=dataset.processed_dir)
-train_loader = ClusterLoader(cluster_data, batch_size=20, shuffle=True,
-                             num_workers=12)
-
-subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024,
-                                  shuffle=False, num_workers=12)
+import argparse
+import cluster_args
 
 
 class Net(torch.nn.Module):
@@ -70,13 +59,6 @@ class Net(torch.nn.Module):
         return x_all
 
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# if torch.cuda.device_count() > 1:
-#     model = DataParallel(model)
-model = Net(dataset.num_features, dataset.num_classes).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-
-
 def train():
     model.train()
 
@@ -109,12 +91,43 @@ def test():  # Inference should be performed on the full graph.
         accs.append(correct / mask.sum().item())
     return accs
 
+# path = osp.join(args.dataset_path)
+# dataset = Reddit(path)
+dataset = Reddit('../data/Reddit')
+data = dataset[0]
 
-for epoch in range(1, 31):
+args = cluster_args.arg_parse()
+
+cluster_data = ClusterData(data, num_parts=1500, recursive=False,
+                           save_dir=dataset.processed_dir)
+train_loader = ClusterLoader(cluster_data, batch_size=args.batch_size, shuffle=True,
+                             num_workers=12)
+
+subgraph_loader = NeighborSampler(data.edge_index, sizes=[-1], batch_size=1024/8,
+                                  shuffle=False, num_workers=12)
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# how to implement baseline w/o dataparallel?
+if args.gpu=="multi": 
+    model = DataParallel(model)
+model = Net(dataset.num_features, dataset.num_classes).to(device)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+
+f = open(args.log_path, 'w')
+
+for epoch in range(1, args.epochs + 1):
+    start_epoch = datetime.now()
     loss = train()
-    if epoch % 5 == 0:
+    end_epoch = datetime.now()
+
+    if epoch%args.eval_steps == 0 and args.eval_enable:
         train_acc, val_acc, test_acc = test()
-        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}, Train: {train_acc:.4f}, '
-              f'Val: {val_acc:.4f}, test: {test_acc:.4f}')
+        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f},', "\tTime: ", str(end_epoch - start_epoch), f', Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}')  
+        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f},', "\tTime: ", str(end_epoch - start_epoch), f', Train: {train_acc:.4f}, Val: {val_acc:.4f}, Test: {test_acc:.4f}', file=f)  
+        f.flush()
     else:
-        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f}')
+        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f},', "\tTime: ", str(end_epoch - start_epoch))  
+        print(f'Epoch: {epoch:02d}, Loss: {loss:.4f},', "\tTime: ", str(end_epoch - start_epoch), file=f)  
+        f.flush()
+
+f.close()
